@@ -1,11 +1,13 @@
 """
 RAG service that handles document retrieval and response generation with conversation history.
+Supports website generation and streaming responses.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, AsyncGenerator, Generator
 from together import Together
 from .document_processor import DocumentProcessor
 import logging
+import asyncio
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -18,6 +20,7 @@ class RAGService:
     1. Maintains conversation history
     2. Retrieves relevant documents for each query
     3. Generates responses using both conversation context and retrieved documents
+    4. Supports website generation and streaming responses
     """
     
     def __init__(self, max_history: int = 5):
@@ -70,9 +73,153 @@ class RAGService:
         if len(self.conversation_history) > self.max_history:
             self.conversation_history = self.conversation_history[-self.max_history:]
 
+    def _get_website_prompt(self, query: str) -> List[Dict[str, str]]:
+        """Generate a prompt for website creation using RAG context."""
+        # Get relevant documents
+        search_results = self.document_processor.similarity_search(query)
+        context = self._format_context(search_results)
+        
+        return [
+            {
+                "role": "system",
+                "content": """ONLY USE HTML, CSS AND JAVASCRIPT. If you want to use ICON make sure to import the library first. 
+                Try to create the best UI possible by using only HTML, CSS and JAVASCRIPT. 
+                Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS 
+                (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). 
+                Also, try to elaborate as much as you can, to create something unique. 
+                ALWAYS GIVE THE RESPONSE INTO A SINGLE HTML FILE.
+                
+                IMPORTANT: Use the provided context to generate the website content. The context contains real data that should be used
+                in the website. For example, if the context contains product information, use those actual products, prices, and details
+                in the website. Do not make up or use generic data."""
+            },
+            {
+                "role": "user",
+                "content": f"""Here is the context with real data that should be used in the website:
+
+{context}
+
+Based on this context and the following request, create a website: {query}
+
+Remember to use the actual data from the context in the website."""
+            }
+        ]
+
+    async def get_response_stream(self, query: str) -> AsyncGenerator[str, None]:
+        """
+        Get a streaming response using RAG with conversation history.
+        
+        Args:
+            query: The user's query
+            
+        Yields:
+            Chunks of the generated response
+            
+        Raises:
+            Exception: If there's an error processing the request
+        """
+        try:
+            # Get relevant documents
+            search_results = self.document_processor.similarity_search(query)
+            
+            # Format context and history
+            context = self._format_context(search_results)
+            history = self._format_conversation_history()
+            
+            # Create prompt with context and history
+            prompt = f"""You are a helpful assistant that answers questions based on the provided context and conversation history.
+            Use the following context and conversation history to answer the question.
+            If the context doesn't contain relevant information, say so.
+            Maintain consistency with previous responses and use the conversation history to understand context.
+
+            {history}
+            {context}
+
+            Current Question: {query}
+
+            Answer:"""
+            
+            # Get streaming response from Together AI
+            stream = self.client.chat.completions.create(
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=1000,
+                stream=True
+            )
+            
+            accumulated_response = ""
+            
+            # Convert synchronous generator to async generator
+            while True:
+                try:
+                    chunk = next(stream)
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        accumulated_response += content
+                        yield content
+                except StopIteration:
+                    break
+                await asyncio.sleep(0)  # Allow other tasks to run
+            
+            # Update conversation history
+            self._update_history(query, accumulated_response)
+
+        except Exception as e:
+            error_msg = f"Error getting streaming RAG response: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            yield f"I encountered an error while processing your request: {str(e)}"
+
+    async def get_website_response_stream(self, query: str) -> AsyncGenerator[str, None]:
+        """
+        Get a streaming response for website generation using RAG context.
+        
+        Args:
+            query: The user's website request
+            
+        Yields:
+            Chunks of the generated website code
+            
+        Raises:
+            Exception: If there's an error processing the request
+        """
+        try:
+            messages = self._get_website_prompt(query)
+            
+            # Get streaming response from Together AI
+            stream = self.client.chat.completions.create(
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=4000,
+                stream=True
+            )
+            
+            accumulated_response = ""
+            
+            # Convert synchronous generator to async generator
+            while True:
+                try:
+                    chunk = next(stream)
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        accumulated_response += content
+                        yield content
+                except StopIteration:
+                    break
+                await asyncio.sleep(0)  # Allow other tasks to run
+            
+            # Update conversation history
+            self._update_history(query, accumulated_response)
+
+        except Exception as e:
+            error_msg = f"Error getting streaming website response: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            yield f"I encountered an error while generating the website: {str(e)}"
+
     def get_response(self, query: str) -> str:
         """
-        Get a response using RAG with conversation history.
+        Get a non-streaming response using RAG with conversation history.
         
         Args:
             query: The user's query
@@ -123,6 +270,42 @@ class RAGService:
             error_msg = f"Error getting RAG response: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return f"I encountered an error while processing your request: {str(e)}"
+
+    def get_website_response(self, query: str) -> str:
+        """
+        Get a non-streaming response for website generation using RAG context.
+        
+        Args:
+            query: The user's website request
+            
+        Returns:
+            The generated website code
+            
+        Raises:
+            Exception: If there's an error processing the request
+        """
+        try:
+            messages = self._get_website_prompt(query)
+            
+            # Get response from Together AI
+            response = self.client.chat.completions.create(
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=4000,
+            )
+            
+            response_text = response.choices[0].message.content
+            
+            # Update conversation history
+            self._update_history(query, response_text)
+            
+            return response_text
+
+        except Exception as e:
+            error_msg = f"Error getting website response: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return f"I encountered an error while generating the website: {str(e)}"
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
