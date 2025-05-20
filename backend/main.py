@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from rag.rag_service import RAGService
+from langsmith import traceable
 
 # Configure logging
 logging.basicConfig(

@@ -8,9 +8,19 @@ from together import Together
 from .document_processor import DocumentProcessor
 import logging
 import asyncio
+from langsmith import Client, traceable
+import os
+from langchain_together import ChatTogether
+from langchain_core.messages import HumanMessage
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Initialize LangSmith client
+langsmith_client = Client(
+    api_key=os.getenv("LANGSMITH_API_KEY"),
+    api_url=os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"),
+)
 
 class RAGService:
     """
@@ -35,6 +45,10 @@ class RAGService:
         self.max_history = max_history
         self.conversation_history: List[Dict[str, str]] = []
         self._initialize_rag()
+        
+        # Verify LangSmith tracing is enabled
+        if not os.getenv("LANGSMITH_TRACING", "").lower() == "true":
+            logger.warning("LangSmith tracing is not enabled. Set LANGSMITH_TRACING=true to enable tracing.")
 
     def _initialize_rag(self) -> None:
         """Initialize the RAG system by processing documents."""
@@ -78,6 +92,7 @@ class RAGService:
         # Get relevant documents
         search_results = self.document_processor.similarity_search(query)
         context = self._format_context(search_results)
+        history = self._format_conversation_history()
         
         return [
             {
@@ -99,78 +114,19 @@ class RAGService:
             },
             {
                 "role": "user",
-                "content": f"""Here is the context with real data that should be used in the website:
+                "content": f"""Here is the conversation history so far:
+
+                {history}
+
+                Here is the context with real data that should be used in the website:
 
                 {context}
 
-                Based on this context and the following request, create a website: {query}
+                Based on this context, conversation history, and the following request, create a website: {query}
 
-                Remember to use the actual data from the context in the website."""
+                Remember to use the actual data from the context in the website and maintain consistency with previous interactions."""
             }
         ]
-
-    async def get_response_stream(self, query: str) -> AsyncGenerator[str, None]:
-        """
-        Get a streaming response using RAG with conversation history.
-        
-        Args:
-            query: The user's query
-            
-        Yields:
-            Chunks of the generated response
-            
-        Raises:
-            Exception: If there's an error processing the request
-        """
-        try:
-            # Get relevant documents
-            search_results = self.document_processor.similarity_search(query)
-            
-            # Format context and history
-            context = self._format_context(search_results)
-            history = self._format_conversation_history()
-            
-            # Create prompt with context and history
-            prompt = f"""You are a helpful assistant that answers questions based on the provided context and conversation history.
-            Use the following context and conversation history to answer the question.
-            If the context doesn't contain relevant information, say so.
-            Maintain consistency with previous responses and use the conversation history to understand context.
-
-            {history}
-            {context}
-
-            Current Question: {query}
-
-            Answer:"""
-            
-            # Get streaming response from Together AI
-            stream = self.client.chat.completions.create(
-                model="deepseek-ai/DeepSeek-V3",
-                messages=[{"role": "user", "content": prompt}],
-                stream=True
-            )
-            
-            accumulated_response = ""
-            
-            # Convert synchronous generator to async generator
-            while True:
-                try:
-                    chunk = next(stream)
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        accumulated_response += content
-                        yield content
-                except StopIteration:
-                    break
-                await asyncio.sleep(0)  # Allow other tasks to run
-            
-            # Update conversation history
-            self._update_history(query, accumulated_response)
-
-        except Exception as e:
-            error_msg = f"Error getting streaming RAG response: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            yield f"I encountered an error while processing your request: {str(e)}"
 
     async def get_website_response_stream(self, query: str) -> AsyncGenerator[str, None]:
         """
@@ -189,125 +145,26 @@ class RAGService:
             messages = self._get_website_prompt(query)
             
             # Get streaming response from Together AI
-            stream = self.client.chat.completions.create(
-                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-                messages=messages,
+            llm = ChatTogether(
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",                
                 temperature=0.7,
                 max_tokens=4000,
-                stream=True
+                streaming=True
             )
-            
-            accumulated_response = ""
-            
-            # Convert synchronous generator to async generator
-            while True:
-                try:
-                    chunk = next(stream)
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        accumulated_response += content
-                        yield content
-                except StopIteration:
-                    break
-                await asyncio.sleep(0)  # Allow other tasks to run
+
+            response = ""
+            for chunk in llm.stream(messages):
+                if chunk.content:
+                    response += chunk.content
+                    yield chunk.content
             
             # Update conversation history
-            self._update_history(query, accumulated_response)
+            self._update_history(query, response)
 
         except Exception as e:
             error_msg = f"Error getting streaming website response: {str(e)}"
             logger.error(error_msg, exc_info=True)
             yield f"I encountered an error while generating the website: {str(e)}"
-
-    def get_response(self, query: str) -> str:
-        """
-        Get a non-streaming response using RAG with conversation history.
-        
-        Args:
-            query: The user's query
-            
-        Returns:
-            The generated response
-            
-        Raises:
-            Exception: If there's an error processing the request
-        """
-        try:
-            # Get relevant documents
-            search_results = self.document_processor.similarity_search(query)
-            
-            # Format context and history
-            context = self._format_context(search_results)
-            history = self._format_conversation_history()
-            
-            # Create prompt with context and history
-            prompt = f"""You are a helpful assistant that answers questions based on the provided context and conversation history.
-            Use the following context and conversation history to answer the question.
-            If the context doesn't contain relevant information, say so.
-            Maintain consistency with previous responses and use the conversation history to understand context.
-
-            {history}
-            {context}
-
-            Current Question: {query}
-
-            Answer:"""
-            
-            # Get response from Together AI
-            response = self.client.chat.completions.create(
-                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=1000,
-            )
-            
-            response_text = response.choices[0].message.content
-            
-            # Update conversation history
-            self._update_history(query, response_text)
-            
-            return response_text
-
-        except Exception as e:
-            error_msg = f"Error getting RAG response: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return f"I encountered an error while processing your request: {str(e)}"
-
-    def get_website_response(self, query: str) -> str:
-        """
-        Get a non-streaming response for website generation using RAG context.
-        
-        Args:
-            query: The user's website request
-            
-        Returns:
-            The generated website code
-            
-        Raises:
-            Exception: If there's an error processing the request
-        """
-        try:
-            messages = self._get_website_prompt(query)
-            
-            # Get response from Together AI
-            response = self.client.chat.completions.create(
-                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=4000,
-            )
-            
-            response_text = response.choices[0].message.content
-            
-            # Update conversation history
-            self._update_history(query, response_text)
-            
-            return response_text
-
-        except Exception as e:
-            error_msg = f"Error getting website response: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return f"I encountered an error while generating the website: {str(e)}"
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
