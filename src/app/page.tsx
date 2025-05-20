@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Preview from "@/components/Preview";
+import { defaultHTML } from "@/utils/consts";
 
 export default function Home() {
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hello! How can I help you today?" },
+    { role: "assistant", content: "Hello! I can help you create a website. Just ask me to create a portfolio website or any other type of website you need." },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState(defaultHTML);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +29,8 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage]
+          messages: [...messages, userMessage],
+          stream: true // Enable streaming
         }),
       });
 
@@ -33,8 +38,51 @@ export default function Home() {
         throw new Error('Failed to get response');
       }
 
-      const data = await response.json();
-      setMessages(prev => [...prev, data]);
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader available');
+
+      let accumulatedContent = '';
+      let currentHtml = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Convert the chunk to text
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                accumulatedContent += parsed.content;
+                
+                // Try to extract HTML from the accumulated content
+                const htmlMatch = accumulatedContent.match(/```html\n([\s\S]*?)\n```/);
+                if (htmlMatch) {
+                  currentHtml = htmlMatch[1];
+                  setPreviewHtml(currentHtml);
+                }
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
+          }
+        }
+      }
+
+      // Add the complete message to the chat
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: accumulatedContent 
+      }]);
+
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
@@ -47,45 +95,46 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="p-4 bg-white shadow text-xl font-bold text-center">LLM Chat</header>
-      <main className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-xl flex flex-col gap-4 bg-white rounded shadow p-4 min-h-[400px]">
-          <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+    <div className="flex h-screen bg-gray-50">
+      {/* Chat Panel */}
+      <div className="w-1/2 flex flex-col border-r border-gray-200">
+        <header className="p-4 bg-white shadow text-xl font-bold">Website Builder Chat</header>
+        <main className="flex-1 flex flex-col p-4 overflow-hidden">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-2 mb-4">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`p-2 rounded max-w-[80%] ${
+                className={`p-3 rounded-lg max-w-[90%] ${
                   msg.role === "user"
                     ? "self-end bg-blue-100 text-right"
-                    : "self-start bg-gray-200 text-left"
+                    : "self-start bg-gray-100 text-left"
                 }`}
               >
                 <span className="block text-xs text-gray-500 mb-1">
                   {msg.role === "user" ? "You" : "Assistant"}
                 </span>
-                <span>{msg.content}</span>
+                <div className="whitespace-pre-wrap">{msg.content}</div>
               </div>
             ))}
             {isLoading && (
-              <div className="self-start bg-gray-200 text-left p-2 rounded max-w-[80%]">
+              <div className="self-start bg-gray-100 text-left p-3 rounded-lg max-w-[90%]">
                 <span className="block text-xs text-gray-500 mb-1">Assistant</span>
-                <span>Thinking...</span>
+                <span>Creating your website...</span>
               </div>
             )}
           </div>
-          <form onSubmit={handleSend} className="flex gap-2 mt-2">
+          <form onSubmit={handleSend} className="flex gap-2">
             <input
-              className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
+              className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               type="text"
-              placeholder="Type your message..."
+              placeholder="Ask me to create a website..."
               value={input}
               onChange={e => setInput(e.target.value)}
               disabled={isLoading}
             />
             <button
               type="submit"
-              className={`px-4 py-2 rounded text-white transition ${
+              className={`px-6 py-2 rounded-lg text-white font-medium transition ${
                 isLoading 
                   ? "bg-blue-300 cursor-not-allowed" 
                   : "bg-blue-500 hover:bg-blue-600"
@@ -95,9 +144,17 @@ export default function Home() {
               Send
             </button>
           </form>
-        </div>
-      </main>
-      <footer className="p-2 text-center text-xs text-gray-400">&copy; {new Date().getFullYear()} AI-RAG-System</footer>
+        </main>
+      </div>
+
+      {/* Preview Panel */}
+      <Preview
+        html={previewHtml}
+        isResizing={false}
+        isAiWorking={isLoading}
+        setView={() => {}}
+        ref={previewRef}
+      />
     </div>
   );
 }
