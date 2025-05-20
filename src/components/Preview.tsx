@@ -34,7 +34,7 @@ function Preview({
   return (
     <div
       ref={ref}
-      className="w-full border-l border-gray-900 bg-white h-[calc(100dvh-49px)] lg:h-[calc(100dvh-53px)] relative"
+      className="w-full border-l border-gray-200 bg-white h-[calc(100dvh-49px)] lg:h-[calc(100dvh-53px)] relative"
       onClick={(e) => {
         if (isAiWorking) {
           e.preventDefault();
@@ -53,7 +53,7 @@ function Preview({
       />
       <div className="flex items-center justify-start gap-3 absolute bottom-3 lg:bottom-5 max-lg:left-3 lg:right-5">
         <button
-          className="lg:hidden bg-gray-950 shadow-md text-white text-xs lg:text-sm font-medium py-2 px-3 lg:px-4 rounded-lg flex items-center gap-2 border border-gray-900 hover:brightness-150 transition-all duration-100 cursor-pointer"
+          className="lg:hidden bg-[#1A1F71] shadow-md text-white text-xs lg:text-sm font-medium py-2 px-3 lg:px-4 rounded-lg flex items-center gap-2 border border-[#1A1F71] hover:bg-[#1A1F71]/90 transition-all duration-100 cursor-pointer"
           onClick={() => setView("editor")}
         >
           <FaLaptopCode className="text-sm" />
@@ -61,7 +61,7 @@ function Preview({
         </button>
         {!isAiWorking && (
           <button
-            className="bg-white lg:bg-gray-950 shadow-md text-gray-950 lg:text-white text-xs lg:text-sm font-medium py-2 px-3 lg:px-4 rounded-lg flex items-center gap-2 border border-gray-100 lg:border-gray-900 hover:brightness-150 transition-all duration-100 cursor-pointer"
+            className="bg-white lg:bg-[#1A1F71] shadow-md text-[#1A1F71] lg:text-white text-xs lg:text-sm font-medium py-2 px-3 lg:px-4 rounded-lg flex items-center gap-2 border border-gray-200 lg:border-[#1A1F71] hover:bg-[#1A1F71]/90 transition-all duration-100 cursor-pointer"
             onClick={handleRefreshIframe}
           >
             <TbReload className="text-sm" />

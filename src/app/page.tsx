@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import Preview from "@/components/Preview";
 import { defaultHTML } from "@/utils/consts";
+import { FaWandMagicSparkles } from "react-icons/fa6";
+import { Inter, Playfair_Display } from "next/font/google";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
 
 export default function Home() {
   const [messages, setMessages] = useState([
@@ -11,7 +18,43 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState(defaultHTML);
+  const [isResizing, setIsResizing] = useState(false);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(35); // percentage
   const previewRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !containerRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newLeftPanelWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    
+    // Limit the minimum and maximum width of the left panel
+    if (newLeftPanelWidth >= 30 && newLeftPanelWidth <= 70) {
+      setLeftPanelWidth(newLeftPanelWidth);
+    }
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Add and remove event listeners
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,37 +138,74 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div 
+      ref={containerRef}
+      className={`flex h-screen bg-gray-50 ${inter.variable} ${playfair.variable} relative`}
+    >
       {/* Chat Panel */}
-      <div className="w-1/2 flex flex-col border-r border-gray-200">
-        <header className="p-4 bg-white shadow text-xl font-bold">Website Builder Chat</header>
-        <main className="flex-1 flex flex-col p-4 overflow-hidden">
-          <div className="flex-1 overflow-y-auto flex flex-col gap-2 mb-4">
+      <div 
+        className="flex flex-col border-r border-gray-200 bg-white"
+        style={{ width: `${leftPanelWidth}%` }}
+      >
+        <header className="p-6 bg-[#1A1F71] text-white shadow-lg">
+          <h1 className="font-playfair text-3xl font-bold tracking-tight">
+            Website Builder
+            <span className="text-[#fdbb0a] ml-2">✨</span>
+          </h1>
+        </header>
+        <main className="flex-1 flex flex-col p-6 overflow-hidden">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-3 mb-4">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`p-3 rounded-lg max-w-[90%] ${
+                className={`p-4 rounded-xl max-w-[90%] shadow-sm ${
                   msg.role === "user"
-                    ? "self-end bg-blue-100 text-right"
-                    : "self-start bg-gray-100 text-left"
+                    ? "self-end bg-[#1A1F71] text-white"
+                    : "self-start bg-gray-50 border border-gray-100"
                 }`}
               >
-                <span className="block text-xs text-gray-500 mb-1">
+                <span className={`block text-xs mb-1 ${
+                  msg.role === "user" ? "text-gray-200" : "text-gray-500"
+                }`}>
                   {msg.role === "user" ? "You" : "Assistant"}
                 </span>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="whitespace-pre-wrap font-inter">
+                  {msg.role === "assistant" && msg.content.includes("```html") ? (
+                    (() => {
+                      const codeMatch = msg.content.match(/```html\n([\s\S]*?)```/);
+                      if (codeMatch) {
+                        return (
+                          <SyntaxHighlighter
+                            language="html"
+                            style={vscDarkPlus}
+                            customStyle={{ borderRadius: 8, fontSize: 14, margin: '12px 0' }}
+                            showLineNumbers
+                          >
+                            {codeMatch[1]}
+                          </SyntaxHighlighter>
+                        );
+                      }
+                      return msg.content;
+                    })()
+                  ) : (
+                    msg.content
+                  )}
+                </div>
               </div>
             ))}
             {isLoading && (
-              <div className="self-start bg-gray-100 text-left p-3 rounded-lg max-w-[90%]">
+              <div className="self-start bg-gray-50 border border-gray-100 text-left p-4 rounded-xl max-w-[90%] shadow-sm">
                 <span className="block text-xs text-gray-500 mb-1">Assistant</span>
-                <span>Creating your website...</span>
+                <div className="flex items-center gap-2 text-[#1A1F71]">
+                  <FaWandMagicSparkles className="animate-spin text-lg text-[#fdbb0a]" />
+                  <span className="font-medium">Crafting your website with AI magic...</span>
+                </div>
               </div>
             )}
           </div>
-          <form onSubmit={handleSend} className="flex gap-2">
+          <form onSubmit={handleSend} className="flex gap-3">
             <input
-              className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#1A1F71] focus:border-transparent transition-all font-inter"
               type="text"
               placeholder="Ask me to create a website..."
               value={input}
@@ -134,10 +214,10 @@ export default function Home() {
             />
             <button
               type="submit"
-              className={`px-6 py-2 rounded-lg text-white font-medium transition ${
+              className={`px-6 py-3 rounded-xl text-white font-medium transition-all shadow-sm ${
                 isLoading 
-                  ? "bg-blue-300 cursor-not-allowed" 
-                  : "bg-blue-500 hover:bg-blue-600"
+                  ? "bg-gray-300 cursor-not-allowed" 
+                  : "bg-[#1A1F71] hover:bg-[#1A1F71]/90 active:bg-[#1A1F71]/80"
               }`}
               disabled={isLoading}
             >
@@ -147,14 +227,27 @@ export default function Home() {
         </main>
       </div>
 
+      {/* Resizable Divider */}
+      <div
+        className={`absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-[#1A1F71]/20 transition-colors flex items-center justify-center ${
+          isResizing ? 'bg-[#1A1F71]/30' : 'bg-gray-100'
+        }`}
+        style={{ left: `${leftPanelWidth}%`, transform: 'translateX(-50%)' }}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="w-1 h-12 bg-gray-300 rounded-full hover:bg-[#1A1F71] transition-colors" />
+      </div>
+
       {/* Preview Panel */}
-      <Preview
-        html={previewHtml}
-        isResizing={false}
-        isAiWorking={isLoading}
-        setView={() => {}}
-        ref={previewRef}
-      />
+      <div style={{ width: `${100 - leftPanelWidth}%` }}>
+        <Preview
+          html={previewHtml}
+          isResizing={isResizing}
+          isAiWorking={isLoading}
+          setView={() => {}}
+          ref={previewRef}
+        />
+      </div>
     </div>
   );
 }
