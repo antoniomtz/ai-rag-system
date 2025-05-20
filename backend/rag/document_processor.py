@@ -10,6 +10,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_together import TogetherEmbeddings
 from langchain.schema import Document
+from langsmith import traceable
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ DEFAULT_SEPARATORS = ["\n\n", "\n", ".", "!", "?", ",", " ", ""]
 DEFAULT_EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"
 DEFAULT_DATA_DIR = "data"
 DEFAULT_INDEX_DIR = "faiss_index"
-DEFAULT_SIMILARITY_SEARCH_K = 4
+DEFAULT_SIMILARITY_SEARCH_K = 1
 
 class DocumentProcessor:
     """
@@ -238,6 +239,7 @@ class DocumentProcessor:
             logger.error(f"Error processing documents: {str(e)}", exc_info=True)
             raise
 
+    @traceable
     def similarity_search(
         self,
         query: str,
