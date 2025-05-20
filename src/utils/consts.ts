@@ -13,28 +13,34 @@ export const defaultHTML = `<!DOCTYPE html>
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f5f5f5;
-            color: #333;
+            background-color: #f8f9fa;
+            color: #1A1F71;
         }
         .placeholder {
             text-align: center;
             padding: 2rem;
+            max-width: 600px;
         }
         .placeholder h1 {
-            font-size: 2rem;
+            font-size: 2.5rem;
             margin-bottom: 1rem;
-            color: #666;
+            color: #1A1F71;
+            font-weight: 700;
         }
         .placeholder p {
-            font-size: 1.1rem;
-            color: #888;
+            font-size: 1.2rem;
+            color: #666;
+            line-height: 1.6;
+        }
+        .placeholder .accent {
+            color: #fdbb0a;
         }
     </style>
 </head>
 <body>
     <div class="placeholder">
-        <h1>Website Preview</h1>
-        <p>Your website will appear here. Ask the AI to create a website for you!</p>
+        <h1>Website Preview <span class="accent">✨</span></h1>
+        <p>Your website will appear here. Ask the AI to create a beautiful website for you!</p>
     </div>
 </body>
 </html>`; 

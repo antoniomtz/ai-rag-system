@@ -82,12 +82,16 @@ class RAGService:
         return [
             {
                 "role": "system",
-                "content": """ONLY USE HTML, CSS AND JAVASCRIPT. If you want to use ICON make sure to import the library first. 
-                Try to create the best UI possible by using only HTML, CSS and JAVASCRIPT. 
-                Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS 
-                (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). 
-                Also, try to elaborate as much as you can, to create something unique. 
-                ALWAYS GIVE THE RESPONSE INTO A SINGLE HTML FILE.
+                "content": """ONLY USE HTML, CSS AND JAVASCRIPT. 
+                - Use TailwindCSS for styling (import <script src='https://cdn.tailwindcss.com'></script> in the head).
+                - For icons, use open source libraries like Font Awesome (import <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'> in the head) or Heroicons.
+                - For fonts, use Google Fonts (import the font in the head).
+                - For animations, you can use Animate.css (import <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css'>).
+                - You can use open source illustrations from unDraw or SVGBackgrounds.
+                - Be creative: use cards, gradients, shadows, hover effects, and modern layouts.
+                - Make the UI visually appealing and unique, not just plain layouts.
+                - ALWAYS GIVE THE RESPONSE AS A SINGLE HTML FILE.
+                - Use the provided context data for content, but make the design stand out.
                 
                 IMPORTANT: Use the provided context to generate the website content. The context contains real data that should be used
                 in the website. For example, if the context contains product information, use those actual products, prices, and details
@@ -97,11 +101,11 @@ class RAGService:
                 "role": "user",
                 "content": f"""Here is the context with real data that should be used in the website:
 
-{context}
+                {context}
 
-Based on this context and the following request, create a website: {query}
+                Based on this context and the following request, create a website: {query}
 
-Remember to use the actual data from the context in the website."""
+                Remember to use the actual data from the context in the website."""
             }
         ]
 
@@ -141,10 +145,8 @@ Remember to use the actual data from the context in the website."""
             
             # Get streaming response from Together AI
             stream = self.client.chat.completions.create(
-                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+                model="deepseek-ai/DeepSeek-V3",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=1000,
                 stream=True
             )
             
