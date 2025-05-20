@@ -16,13 +16,13 @@ from langsmith import traceable
 logger = logging.getLogger(__name__)
 
 # Constants for configuration
-DEFAULT_CHUNK_SIZE = 4000
-DEFAULT_CHUNK_OVERLAP = 200
+DEFAULT_CHUNK_SIZE = 500
+DEFAULT_CHUNK_OVERLAP = 50
 DEFAULT_SEPARATORS = ["\n\n", "\n", ".", "!", "?", ",", " ", ""]
-DEFAULT_EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"
+DEFAULT_EMBEDDING_MODEL = "BAAI/bge-large-en-v1.5"
 DEFAULT_DATA_DIR = "data"
 DEFAULT_INDEX_DIR = "faiss_index"
-DEFAULT_SIMILARITY_SEARCH_K = 1
+DEFAULT_SIMILARITY_SEARCH_K = 4
 
 class DocumentProcessor:
     """
@@ -71,6 +71,9 @@ class DocumentProcessor:
         
         # Initialize vector store
         self.vector_store: Optional[FAISS] = None
+        
+        # Initialize query embedding cache
+        self._query_embedding_cache: Dict[str, List[float]] = {}
         
         # Load or create index
         self._load_or_create_index()
@@ -263,9 +266,25 @@ class DocumentProcessor:
             raise ValueError("Vector store not initialized. Call process_documents first.")
         
         try:
-            results = self.vector_store.similarity_search_with_score(query, k=k)
+            # Check cache for query embedding
+            if query not in self._query_embedding_cache:
+                # Get embedding for query and cache it
+                query_embedding = self.embeddings.embed_query(query)
+                self._query_embedding_cache[query] = query_embedding
+                logger.debug(f"Cached embedding for query: {query}")
+            
+            # Use the cached embedding directly with the vector store's internal method
+            results = self.vector_store.similarity_search_with_score_by_vector(
+                self._query_embedding_cache[query],
+                k=k
+            )
             logger.debug(f"Found {len(results)} results for query: {query}")
             return results
         except Exception as e:
             logger.error(f"Error performing similarity search: {str(e)}", exc_info=True)
-            raise 
+            raise
+
+    def clear_query_cache(self) -> None:
+        """Clear the query embedding cache."""
+        self._query_embedding_cache.clear()
+        logger.info("Query embedding cache cleared") 

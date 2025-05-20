@@ -102,6 +102,16 @@ async def chat(request: ChatRequest):
             )
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/chat/clear")
+async def clear_chat():
+    """Clear the chat context and history."""
+    try:
+        rag_service.clear_history()
+        return {"status": "success", "message": "Chat context cleared"}
+    except Exception as e:
+        logger.error(f"Error clearing chat context: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

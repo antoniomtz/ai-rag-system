@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Preview from "@/components/Preview";
 import { defaultHTML } from "@/utils/consts";
-import { FaWandMagicSparkles } from "react-icons/fa6";
+import { FaWandMagicSparkles, FaTrash } from "react-icons/fa6";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -137,6 +137,25 @@ export default function Home() {
     }
   };
 
+  const handleClearAll = async () => {
+    // Clear chat messages except the initial greeting
+    setMessages([
+      { role: "assistant", content: "Hello! I can help you create a website. Just ask me to create a portfolio website or any other type of website you need." }
+    ]);
+    // Reset website preview to default
+    setPreviewHtml(defaultHTML);
+    // Clear input
+    setInput("");
+    // Clear backend context
+    try {
+      await fetch('http://localhost:8000/api/chat/clear', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Error clearing context:', error);
+    }
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -147,11 +166,19 @@ export default function Home() {
         className="flex flex-col border-r border-gray-200 bg-white"
         style={{ width: `${leftPanelWidth}%` }}
       >
-        <header className="p-6 bg-[#1A1F71] text-white shadow-lg">
+        <header className="p-6 bg-[#1A1F71] text-white shadow-lg flex justify-between items-center">
           <h1 className="font-playfair text-3xl font-bold tracking-tight">
             Website Builder
             <span className="text-[#fdbb0a] ml-2">✨</span>
           </h1>
+          <button
+            onClick={handleClearAll}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
+            title="Clear chat and website"
+          >
+            <FaTrash className="text-sm" />
+            Clear All
+          </button>
         </header>
         <main className="flex-1 flex flex-col p-6 overflow-hidden">
           <div className="flex-1 overflow-y-auto flex flex-col gap-3 mb-4">

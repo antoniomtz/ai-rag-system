@@ -16,6 +16,8 @@ from langchain_core.messages import HumanMessage
 # Configure logging
 logger = logging.getLogger(__name__)
 
+DEFAULT_LLM_MODEL="deepseek-ai/DeepSeek-V3"
+
 # Initialize LangSmith client
 langsmith_client = Client(
     api_key=os.getenv("LANGSMITH_API_KEY"),
@@ -24,39 +26,22 @@ langsmith_client = Client(
 
 class RAGService:
     """
-    Service that combines document retrieval with conversation history for context-aware responses.
-    
-    This class:
-    1. Maintains conversation history
-    2. Retrieves relevant documents for each query
-    3. Generates responses using both conversation context and retrieved documents
-    4. Supports website generation and streaming responses
+    Service that combines document retrieval with response generation.
+    Maintains only the last conversation for website updates.
     """
     
-    def __init__(self, max_history: int = 5):
+    def __init__(self):
         """
         Initialize the RAG service.
-        
-        Args:
-            max_history: Maximum number of conversation turns to keep in history
         """
-        self.document_processor = DocumentProcessor()
+        self.document_processor = DocumentProcessor()  # This already handles document processing
         self.client = Together()
-        self.max_history = max_history
-        self.conversation_history: List[Dict[str, str]] = []
-        self._initialize_rag()
+        self.last_query: Optional[str] = None
+        self.last_response: Optional[str] = None
         
         # Verify LangSmith tracing is enabled
         if not os.getenv("LANGSMITH_TRACING", "").lower() == "true":
             logger.warning("LangSmith tracing is not enabled. Set LANGSMITH_TRACING=true to enable tracing.")
-
-    def _initialize_rag(self) -> None:
-        """Initialize the RAG system by processing documents."""
-        try:
-            self.document_processor.process_documents()
-        except Exception as e:
-            logger.error(f"Error initializing RAG system: {str(e)}", exc_info=True)
-            raise
 
     def _format_context(self, search_results: List[Dict]) -> str:
         """Format search results into a context string."""
@@ -67,25 +52,21 @@ class RAGService:
         return context
 
     def _format_conversation_history(self) -> str:
-        """Format conversation history into a string."""
-        if not self.conversation_history:
+        """Format the last conversation into a string."""
+        if not self.last_query or not self.last_response:
             return ""
             
-        history = "Previous conversation:\n"
-        for turn in self.conversation_history[-self.max_history:]:
-            history += f"User: {turn['user']}\n"
-            history += f"Assistant: {turn['assistant']}\n\n"
-        return history
+        return f"""Previous conversation:
+                User: {self.last_query}
+                Assistant: {self.last_response}
+
+                """
 
     def _update_history(self, query: str, response: str) -> None:
-        """Update conversation history with new turn."""
-        self.conversation_history.append({
-            "user": query,
-            "assistant": response
-        })
-        # Keep only the last max_history turns
-        if len(self.conversation_history) > self.max_history:
-            self.conversation_history = self.conversation_history[-self.max_history:]
+        """Update the last conversation."""
+        self.last_query = query
+        self.last_response = response
+        logger.debug("Updated last conversation")
 
     def _get_website_prompt(self, query: str) -> List[Dict[str, str]]:
         """Generate a prompt for website creation using RAG context."""
@@ -114,7 +95,7 @@ class RAGService:
             },
             {
                 "role": "user",
-                "content": f"""Here is the conversation history so far:
+                "content": f"""Here is the previous conversation (if any):
 
                 {history}
 
@@ -122,7 +103,7 @@ class RAGService:
 
                 {context}
 
-                Based on this context, conversation history, and the following request, create a website: {query}
+                Based on this context, previous conversation (if any), and the following request, create a website: {query}
 
                 Remember to use the actual data from the context in the website and maintain consistency with previous interactions."""
             }
@@ -146,7 +127,7 @@ class RAGService:
             
             # Get streaming response from Together AI
             llm = ChatTogether(
-                model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",                
+                model=DEFAULT_LLM_MODEL,                
                 temperature=0.7,
                 max_tokens=4000,
                 streaming=True
@@ -167,6 +148,7 @@ class RAGService:
             yield f"I encountered an error while generating the website: {str(e)}"
 
     def clear_history(self) -> None:
-        """Clear the conversation history."""
-        self.conversation_history = []
-        logger.info("Conversation history cleared") 
+        """Clear the last conversation."""
+        self.last_query = None
+        self.last_response = None
+        logger.info("Last conversation cleared") 
