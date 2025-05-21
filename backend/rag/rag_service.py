@@ -18,11 +18,29 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_MODEL="deepseek-ai/DeepSeek-V3"
 
-# Initialize LangSmith client
-langsmith_client = Client(
-    api_key=os.getenv("LANGSMITH_API_KEY"),
-    api_url=os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"),
-)
+# Initialize LangSmith client with better error handling
+try:
+    langsmith_api_key = os.getenv("LANGSMITH_API_KEY")
+    if not langsmith_api_key:
+        logger.warning("LANGSMITH_API_KEY not found in environment variables. LangSmith tracing will be disabled.")
+        langsmith_client = None
+    else:
+        langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+        langsmith_client = Client(
+            api_key=langsmith_api_key,
+            api_url=langsmith_endpoint
+        )
+        # Test the connection
+        try:
+            langsmith_client.list_projects()
+            logger.info("Successfully connected to LangSmith")
+        except Exception as e:
+            logger.error(f"Failed to connect to LangSmith: {str(e)}")
+            logger.warning("LangSmith tracing will be disabled")
+            langsmith_client = None
+except Exception as e:
+    logger.error(f"Error initializing LangSmith client: {str(e)}")
+    langsmith_client = None
 
 class RAGService:
     """
@@ -34,13 +52,20 @@ class RAGService:
         """
         Initialize the RAG service.
         """
+        # Verify Together AI API key is set
+        together_api_key = os.getenv("TOGETHER_API_KEY")
+        if not together_api_key:
+            raise ValueError("TOGETHER_API_KEY environment variable is not set")
+            
         self.document_processor = DocumentProcessor()  # This already handles document processing
-        self.client = Together()
+        self.client = Together(api_key=together_api_key)
         self.last_query: Optional[str] = None
         self.last_response: Optional[str] = None
         
-        # Verify LangSmith tracing is enabled
-        if not os.getenv("LANGSMITH_TRACING", "").lower() == "true":
+        # Log LangSmith status
+        if langsmith_client is None:
+            logger.warning("LangSmith tracing is disabled. Set valid LANGSMITH_API_KEY to enable tracing.")
+        elif not os.getenv("LANGSMITH_TRACING", "").lower() == "true":
             logger.warning("LangSmith tracing is not enabled. Set LANGSMITH_TRACING=true to enable tracing.")
 
     def _format_context(self, search_results: List[Dict]) -> str:
@@ -78,7 +103,7 @@ class RAGService:
         return [
             {
                 "role": "system",
-                "content": """ONLY USE HTML, CSS AND JAVASCRIPT. 
+                "content": """ONLY USE HTML, CSS AND JAVASCRIPT FOR YOUR RESPONSE, DO NOT INCLUDE ANY OTHER TEXT. 
                 - Use TailwindCSS for styling (import <script src='https://cdn.tailwindcss.com'></script> in the head).
                 - For icons, use open source libraries like Font Awesome (import <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'> in the head) or Heroicons.
                 - For fonts, use Google Fonts (import the font in the head).
@@ -129,7 +154,7 @@ class RAGService:
             llm = ChatTogether(
                 model=DEFAULT_LLM_MODEL,                
                 temperature=0.7,
-                max_tokens=4000,
+                max_tokens=8000,
                 streaming=True
             )
 
