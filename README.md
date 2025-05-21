@@ -1,141 +1,170 @@
-# AI Chat Application
+# AI Website Builder with RAG
 
-A chat application built with Next.js frontend and FastAPI backend, using Together AI for generating responses.
+An intelligent system that generates static websites using Retrieval-Augmented Generation (RAG) and natural language processing. The system leverages document context and user instructions to create beautiful, responsive websites through an intuitive chat interface.
 
-## Project Structure
+## Project Overview
 
-```
-.
-├── backend/           # FastAPI backend
-│   ├── main.py       # Backend server code
-│   ├── requirements.txt  # Python dependencies
-│   └── .env         # Environment variables (create this)
-├── src/              # Next.js frontend
-│   └── app/         # Frontend application code
-└── README.md        # This file
-```
+This project combines the power of RAG with modern web technologies to create an AI-powered website builder. Users can provide documents (PDFs) containing content and styling preferences, and then use natural language to instruct the AI to generate websites that incorporate this content.
 
-## Backend Setup
+### Key Features
 
-### 1. Create and Activate Virtual Environment
+- Document-based context retrieval using RAG
+- Natural language to website generation
+- Interactive chat interface
+- Live website preview
+- Responsive and modern UI design
 
-```bash
-# Navigate to the backend directory
-cd backend
+## System Architecture
 
-# Create a virtual environment
-python -m venv venv
+### Core Components
 
-# Activate the virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# .\venv\Scripts\activate
-```
+#### Backend (Python/FastAPI)
+- **RAG System**: Document processing and context retrieval
+  - PDF document ingestion and chunking
+  - Semantic search using FAISS vector database
+  - BGE-large-en-v1.5 for embeddings
+- **LLM Integration**
+  - DeepSeek-V3 as the primary language model
+  - Together AI for model hosting
+- **Observability**
+  - LangSmith for tracing and monitoring
+  - Comprehensive logging system
+- **API Layer**
+  - FastAPI for high-performance API endpoints
+  - Streaming responses for real-time updates
+  - CORS support for frontend integration
 
-### 2. Install Dependencies
+#### Frontend (React/Next.js)
+- **User Interface**
+  - Modern, responsive design with Tailwind CSS
+  - Split-pane layout with chat and preview
+  - Real-time website preview
+  - Interactive chat interface
+- **State Management**
+  - React hooks for state management
+  - Context API for global state
+- **Styling**
+  - Tailwind CSS for utility-first styling
+  - Custom components and animations
+  - Responsive design for all devices
 
-```bash
-# Make sure you're in the backend directory with venv activated
-pip install -r requirements.txt
-```
+## Technology Stack
 
-### 3. Set Up Environment Variables
+### AI & ML Components
+- **RAG Framework**: LangChain
+- **Vector Database**: FAISS
+- **Embedding Model**: BGE-large-en-v1.5
+- **Language Model**: DeepSeek-V3
+- **Observability**: LangSmith
+- **Model Hosting**: Together AI
 
-1. Create a `.env` file in the backend directory:
-```bash
-touch .env
-```
+### Frontend Technologies
+- **Framework**: Next.js
+- **UI Library**: React
+- **Styling**: Tailwind CSS
+- **Icons**: Font Awesome, Heroicons
+- **Animations**: Animate.css
 
-2. Add your Together AI API key to the `.env` file:
-```
-TOGETHER_API_KEY=your_api_key_here
-```
+### Backend Technologies
+- **Framework**: FastAPI
+- **Language**: Python
+- **Document Processing**: PyPDF
+- **Vector Storage**: FAISS
+- **API Integration**: Together AI, LangSmith
 
-You can get your API key from [Together AI](https://www.together.ai/).
+## Setup Instructions
 
-### 4. Run the Backend Server
+### Prerequisites
 
-```bash
-# Make sure you're in the backend directory with venv activated
-python main.py
-```
+- Python 3.11 or higher
+- Node.js 18 or higher
+- npm or yarn
+- Together AI API key
+- LangSmith API key
 
-The server will start on `http://localhost:8000`.
+### Frontend Setup
 
-## Frontend Setup
+1. Navigate to the project root directory.
 
-### 1. Install Dependencies
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-# Navigate to the project root
-npm install
-```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-### 2. Run the Development Server
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-```bash
-npm run dev
-```
+### Backend Setup
 
-The frontend will be available at `http://localhost:3000`.
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
 
-## Running the Application
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-1. Start the backend server (in the backend directory):
-```bash
-source venv/bin/activate  # If not already activated
-python main.py
-```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-2. In a new terminal, start the frontend (in the project root):
-```bash
-npm run dev
-```
+4. Create a `.env` file in the backend directory with your API keys:
+   ```
+   TOGETHER_API_KEY=your_together_api_key
+   LANGSMITH_API_KEY=your_langsmith_api_key
+   LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+   LANGSMITH_TRACING=true
+   LANGSMITH_PROJECT=your_project_name
+   ```
 
-3. Open your browser and navigate to `http://localhost:3000`
+5. Start the backend server:
+   ```bash
+   python main.py
+   ```
 
-## API Endpoints
+## Usage
 
-### Chat Endpoint
-
-- **URL**: `/api/chat`
-- **Method**: `POST`
-- **Request Body**:
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "Your message here"
-    }
-  ]
-}
-```
-- **Response**:
-```json
-{
-  "role": "assistant",
-  "content": "AI response here"
-}
-```
+1. Place your PDF documents in the `backend/data` directory
+2. Start both the backend and frontend servers
+3. Open the application in your browser
+4. Use the chat interface to instruct the AI to create websites
+5. View the generated website in real-time in the preview pane
 
 ## Development
 
-- Backend: FastAPI with Python 3.12+
-- Frontend: Next.js 14 with React
-- AI: Together AI API
+### Project Structure
 
-### TypeScript Files
+```
+.
+├── backend/
+│   ├── data/           # PDF documents for RAG
+│   ├── faiss_index/    # Vector database
+│   ├── rag/            # RAG implementation
+│   ├── main.py         # FastAPI application
+│   └── requirements.txt
+├── src/
+│   ├── app/           # Next.js pages
+│   ├── components/    # React components
+│   └── utils/         # Utility functions
+└── README.md
+```
 
-- `next-env.d.ts`: This is an automatically generated TypeScript declaration file for Next.js. 
-  - Don't modify it manually
-  - Keep it in your project
-  - It's automatically managed by Next.js
-  - It's included in `.gitignore` by default
+### Adding Documents
 
-## Notes
+1. Place PDF files in the `backend/data` directory
+2. The system will automatically process and index them
+3. The content will be available for website generation
 
-- Make sure to keep your API key secure and never commit it to version control
-- The backend server must be running for the frontend to work properly
-- The application uses CORS to allow communication between frontend and backend
+### Customization
+
+- Modify the system prompt in `rag_service.py` to change the website generation style
+- Adjust the chunk size and overlap in `document_processor.py` for different document types
+- Customize the UI components in the `src/components` directory
