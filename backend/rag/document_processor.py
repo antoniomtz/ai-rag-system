@@ -3,6 +3,7 @@ Document processor for RAG system that handles PDF document loading, chunking, a
 """
 
 import logging
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from pypdf import PdfReader
@@ -55,11 +56,18 @@ class DocumentProcessor:
             chunk_overlap: Overlap between chunks
             separators: List of separators to use for text splitting
         """
+        # Verify Together AI API key is set
+        if not os.getenv("TOGETHER_API_KEY"):
+            raise ValueError("TOGETHER_API_KEY environment variable is not set")
+            
         self.data_dir = Path(data_dir)
         self.index_dir = Path(index_dir)
         
-        # Initialize embeddings
-        self.embeddings = TogetherEmbeddings(model=embedding_model)
+        # Initialize embeddings with API key
+        self.embeddings = TogetherEmbeddings(
+            model=embedding_model,
+            together_api_key=os.getenv("TOGETHER_API_KEY")
+        )
         
         # Initialize text splitter
         self.text_splitter = RecursiveCharacterTextSplitter(

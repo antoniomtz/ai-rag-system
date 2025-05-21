@@ -6,6 +6,9 @@ Supports streaming responses and website generation.
 
 import logging
 import json
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -14,12 +17,30 @@ from typing import List, Dict, Optional
 from rag.rag_service import RAGService
 from langsmith import traceable
 
-# Configure logging
+# Configure logging first
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+logger.info(f"Looking for .env file at: {env_path}")
+load_dotenv(dotenv_path=env_path)
+
+# Debug log environment variables (without exposing full values)
+logger.info("Environment variables loaded:")
+logger.info(f"TOGETHER_API_KEY present: {'Yes' if os.getenv('TOGETHER_API_KEY') else 'No'}")
+logger.info(f"LANGSMITH_API_KEY present: {'Yes' if os.getenv('LANGSMITH_API_KEY') else 'No'}")
+logger.info(f"LANGSMITH_ENDPOINT: {os.getenv('LANGSMITH_ENDPOINT', 'Not set')}")
+logger.info(f"LANGSMITH_TRACING: {os.getenv('LANGSMITH_TRACING', 'Not set')}")
+
+# Verify required environment variables
+required_env_vars = ['TOGETHER_API_KEY', 'LANGSMITH_API_KEY']
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+if missing_vars:
+    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
 # Initialize FastAPI app
 app = FastAPI()
