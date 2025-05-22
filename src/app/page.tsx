@@ -107,10 +107,18 @@ export default function Home() {
                 accumulatedContent += parsed.content;
                 
                 // Try to extract HTML from the accumulated content
+                // First try to find HTML in code blocks
                 const htmlMatch = accumulatedContent.match(/```html\n([\s\S]*?)\n```/);
                 if (htmlMatch) {
                   currentHtml = htmlMatch[1];
                   setPreviewHtml(currentHtml);
+                } else {
+                  // If no code block found, look for direct HTML content
+                  const directHtmlMatch = accumulatedContent.match(/(?:<!DOCTYPE html>|<html[\s\S]*?>)[\s\S]*?(?:<\/html>|$)/i);
+                  if (directHtmlMatch) {
+                    currentHtml = directHtmlMatch[0];
+                    setPreviewHtml(currentHtml);
+                  }
                 }
               }
             } catch (e) {
@@ -197,8 +205,9 @@ export default function Home() {
                   {msg.role === "user" ? "You" : "Assistant"}
                 </span>
                 <div className="whitespace-pre-wrap font-inter">
-                  {msg.role === "assistant" && msg.content.includes("```html") ? (
+                  {msg.role === "assistant" ? (
                     (() => {
+                      // First try to find HTML in code blocks
                       const codeMatch = msg.content.match(/```html\n([\s\S]*?)```/);
                       if (codeMatch) {
                         return (
@@ -212,6 +221,22 @@ export default function Home() {
                           </SyntaxHighlighter>
                         );
                       }
+                      
+                      // If no code block found, look for direct HTML content
+                      const directHtmlMatch = msg.content.match(/(?:<!DOCTYPE html>|<html[\s\S]*?>)[\s\S]*?(?:<\/html>|$)/i);
+                      if (directHtmlMatch) {
+                        return (
+                          <SyntaxHighlighter
+                            language="html"
+                            style={vscDarkPlus}
+                            customStyle={{ borderRadius: 8, fontSize: 14, margin: '12px 0' }}
+                            showLineNumbers
+                          >
+                            {directHtmlMatch[0]}
+                          </SyntaxHighlighter>
+                        );
+                      }
+                      
                       return msg.content;
                     })()
                   ) : (
