@@ -8,7 +8,7 @@ This project combines the power of RAG with modern web technologies to create an
 
 ## Demo (youtube)
 
-[![AI website builder](https://img.youtube.com/vi/broMnqiN_Uw/0.jpg)](https://www.youtube.com/watch?v=broMnqiN_Uw)
+[![AI website builder](https://img.youtube.com/vi/gEMA2NlowpY/0.jpg)](https://www.youtube.com/watch?v=gEMA2NlowpY)
 
 ### Key Features
 
@@ -104,29 +104,29 @@ This project combines the power of RAG with modern web technologies to create an
 
 ### Backend Setup
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create a `.env` file in the backend directory with your API keys:
+1. Create a `.env` file in the backend directory with your API keys:
    ```
    TOGETHER_API_KEY=your_together_api_key
    LANGSMITH_API_KEY=your_langsmith_api_key
    LANGSMITH_ENDPOINT=https://api.smith.langchain.com
    LANGSMITH_TRACING=true
    LANGSMITH_PROJECT=your_project_name
+   ```
+
+2. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+3. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+4. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
    ```
 
 5. Start the backend server:
