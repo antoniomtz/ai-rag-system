@@ -3,11 +3,10 @@ RAG service that handles document retrieval and response generation with convers
 Supports website generation and streaming responses.
 """
 
-from typing import List, Dict, Optional, AsyncGenerator, Generator
+from typing import List, Dict, Optional, AsyncGenerator
 from together import Together
 from .document_processor import DocumentProcessor
 import logging
-import asyncio
 from langsmith import Client, traceable
 import os
 from langchain_together import ChatTogether

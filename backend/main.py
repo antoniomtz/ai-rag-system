@@ -9,13 +9,12 @@ import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Optional
 from rag.rag_service import RAGService
-from langsmith import traceable
 
 # Configure logging first
 logging.basicConfig(
