@@ -6,6 +6,11 @@ An intelligent system that generates static websites using Retrieval-Augmented G
 
 This project combines the power of RAG with modern web technologies to create an AI-powered website builder. Users can provide documents (PDFs) containing content and styling preferences, and then use natural language to instruct the AI to generate websites that incorporate this content.
 
+## Diagram
+
+<img src="https://github.com/user-attachments/assets/ae225bd8-e51b-4b54-8557-ead3dbcd0e33" width="500"/>
+
+
 ## Demo (youtube)
 
 [![AI website builder](https://img.youtube.com/vi/gEMA2NlowpY/0.jpg)](https://www.youtube.com/watch?v=gEMA2NlowpY)

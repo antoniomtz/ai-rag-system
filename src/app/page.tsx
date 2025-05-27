@@ -296,7 +296,6 @@ export default function Home() {
           html={previewHtml}
           isResizing={isResizing}
           isAiWorking={isLoading}
-          setView={() => {}}
           ref={previewRef}
         />
       </div>
