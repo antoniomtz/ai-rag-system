@@ -8,7 +8,7 @@ This project combines the power of RAG with modern web technologies to create an
 
 ## Diagram
 
-<img src="https://github.com/user-attachments/assets/ae225bd8-e51b-4b54-8557-ead3dbcd0e33" width="500"/>
+<img src="https://github.com/user-attachments/assets/ae225bd8-e51b-4b54-8557-ead3dbcd0e33" width="800"/>
 
 
 ## Demo (youtube)
